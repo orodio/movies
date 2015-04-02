@@ -6,7 +6,7 @@ import "./debug"
 
 import React        from "react"
 import App          from "components/App.js"
-import movieActions from "actions/movies"
+import movieActions from "actions/movie"
 
 
 

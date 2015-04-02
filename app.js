@@ -56,7 +56,7 @@
 
 	var App = _interopRequire(__webpack_require__(158));
 
-	var movieActions = _interopRequire(__webpack_require__(200));
+	var movieActions = _interopRequire(__webpack_require__(212));
 
 	var DATA = {
 	    mylist: [{ title: "Futurama", id: 1, img: "http://cdn1.nflximg.net/webp/7621/3787621.webp" }, { title: "The Interview", id: 2, img: "http://cdn1.nflximg.net/webp/1381/11971381.webp" }, { title: "Gilmore Girls", id: 3, img: "http://cdn1.nflximg.net/webp/7451/11317451.webp" }],
@@ -18244,15 +18244,45 @@
 
 	var React = _interopRequire(__webpack_require__(1));
 
+	var moviesStore = _interopRequire(__webpack_require__(205));
+
+	var Movies = _interopRequire(__webpack_require__(210));
+
+	var MoviesInWords = _interopRequire(__webpack_require__(219));
+
 	module.exports = React.createClass({
 	  displayName: "App",
 
+	  getInitialState: function getInitialState() {
+	    return {
+	      mylist: moviesStore.getMyList(),
+	      recommendations: moviesStore.getRecommendations()
+	    };
+	  },
+
+	  componentWillMount: function componentWillMount() {
+	    moviesStore.sub(this.update);
+	  },
+
+	  componentWillUnmount: function componentWillUnmount() {
+	    moviesStore.unsub(this.update);
+	  },
+
+	  update: function update() {
+	    this.setState(this.getInitialState());
+	  },
+
 	  render: function render() {
-	    console.log(this.props.data);
+	    var _state = this.state;
+	    var mylist = _state.mylist;
+	    var recommendations = _state.recommendations;
+
 	    return React.createElement(
 	      "div",
-	      null,
-	      "Application"
+	      { className: "App" },
+	      React.createElement(Movies, { title: "My List", movies: mylist }),
+	      React.createElement(Movies, { title: "Recommendations", movies: recommendations }),
+	      React.createElement(MoviesInWords, { title: "My list titles", movies: mylist })
 	    );
 	  }
 	});
@@ -22525,30 +22555,7 @@
 	module.exports = createBaseFor;
 
 /***/ },
-/* 200 */
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-
-	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
-
-	var dispatcher = _interopRequire(__webpack_require__(201));
-
-	module.exports = {
-	  init: function init(data) {
-	    dispatcher.dispatch({ actionType: "MOVIES::INIT", data: data });
-	  },
-
-	  addToMyList: function addToMyList(id) {
-	    dispatcher.dispatch({ actionType: "MOVIES::ADD_MOVIE_TO_MY_LIST", id: id });
-	  },
-
-	  removeFromMyList: function removeFromMyList(id) {
-	    dispatcher.dispatch({ actionType: "MOVIES::REMOVE_MOVIE_FROM_MY_LIST", id: id });
-	  }
-	};
-
-/***/ },
+/* 200 */,
 /* 201 */
 /***/ function(module, exports, __webpack_require__) {
 
@@ -22891,9 +22898,11 @@
 
 	var map = _interopRequire(__webpack_require__(163));
 
-	var __movies = new Map();
-	var __mylist = new Set();
-	var __recommendations = new Set();
+	var filter = _interopRequire(__webpack_require__(207));
+
+	var sortBy = _interopRequire(__webpack_require__(213));
+
+	var __movies = {};
 
 	var Store = (function (_EventEmitter) {
 	  function Store() {
@@ -22922,12 +22931,12 @@
 	    },
 	    getMyList: {
 	      value: function getMyList() {
-	        return getMoviesFromSet(__mylist);
+	        return sortBy(filter(__movies, "inList"), "addedToListAt");
 	      }
 	    },
 	    getRecommendations: {
 	      value: function getRecommendations() {
-	        return getMoviesFromSet(__recommendations);
+	        return filter(__movies, "recommendation");
 	      }
 	    }
 	  });
@@ -22944,18 +22953,14 @@
 
 	  switch (actionType) {
 	    case "MOVIES::INIT":
-	      data.mylist.map(addMovie).forEach(function (movie) {
-	        return addToMyList(movie.id);
-	      });
-	      data.recommendations.map(addMovie).forEach(function (movie) {
-	        return addToRecommendations(movie.id);
-	      });
+	      data.mylist.forEach(mergeOldMovieExtra({ inList: true, addedToListAt: +new Date() }));
+	      data.recommendations.forEach(mergeOldMovieExtra({ recommendation: true }));
 	      store.broadcast();
 	      break;
 
 	    case "MOVIES::ADD_MOVIE_TO_MY_LIST":
 	      addToMyList(id);
-	      undefined.broadcast();
+	      store.broadcast();
 	      break;
 
 	    case "MOVIES::REMOVE_MOVIE_FROM_MY_LIST":
@@ -22967,23 +22972,21 @@
 
 	module.exports = store;
 
-	function getMoviesFromSet(set) {
-	  return map(Array.from(set), function (id) {
-	    return __movies.get(id);
-	  });
-	}
-
 	function addToMyList(id) {
-	  __mylist.add(id);
+	  __movies[id] = Object.assign({}, __movies[id], { inList: true, addedToListAt: +new Date() });
 	}
 
-	function addToRecommendations(id) {
-	  __recommendations.add(id);
+	function removeFromMyList(id) {
+	  __movies[id] = Object.assign({}, __movies[id], { inList: false });
 	}
 
-	function addMovie(movie) {
-	  __movies.set(movie.id, movie);
-	  return movie;
+	function mergeOldMovieExtra() {
+	  var extra = arguments[0] === undefined ? {} : arguments[0];
+
+	  return function (movie) {
+	    var old = __movies[movie.id];
+	    __movies[movie.id] = Object.assign({}, old, movie, extra);
+	  };
 	}
 
 /***/ },
@@ -23252,6 +23255,495 @@
 	function isUndefined(arg) {
 	  return arg === void 0;
 	}
+
+/***/ },
+/* 207 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var arrayFilter = __webpack_require__(208),
+	    baseCallback = __webpack_require__(165),
+	    baseFilter = __webpack_require__(209),
+	    isArray = __webpack_require__(167);
+
+	/**
+	 * Iterates over elements of `collection`, returning an array of all elements
+	 * `predicate` returns truthy for. The predicate is bound to `thisArg` and
+	 * invoked with three arguments: (value, index|key, collection).
+	 *
+	 * If a property name is provided for `predicate` the created `_.property`
+	 * style callback returns the property value of the given element.
+	 *
+	 * If a value is also provided for `thisArg` the created `_.matchesProperty`
+	 * style callback returns `true` for elements that have a matching property
+	 * value, else `false`.
+	 *
+	 * If an object is provided for `predicate` the created `_.matches` style
+	 * callback returns `true` for elements that have the properties of the given
+	 * object, else `false`.
+	 *
+	 * @static
+	 * @memberOf _
+	 * @alias select
+	 * @category Collection
+	 * @param {Array|Object|string} collection The collection to iterate over.
+	 * @param {Function|Object|string} [predicate=_.identity] The function invoked
+	 *  per iteration.
+	 * @param {*} [thisArg] The `this` binding of `predicate`.
+	 * @returns {Array} Returns the new filtered array.
+	 * @example
+	 *
+	 * _.filter([4, 5, 6], function(n) {
+	 *   return n % 2 == 0;
+	 * });
+	 * // => [4, 6]
+	 *
+	 * var users = [
+	 *   { 'user': 'barney', 'age': 36, 'active': true },
+	 *   { 'user': 'fred',   'age': 40, 'active': false }
+	 * ];
+	 *
+	 * // using the `_.matches` callback shorthand
+	 * _.pluck(_.filter(users, { 'age': 36, 'active': true }), 'user');
+	 * // => ['barney']
+	 *
+	 * // using the `_.matchesProperty` callback shorthand
+	 * _.pluck(_.filter(users, 'active', false), 'user');
+	 * // => ['fred']
+	 *
+	 * // using the `_.property` callback shorthand
+	 * _.pluck(_.filter(users, 'active'), 'user');
+	 * // => ['barney']
+	 */
+	function filter(collection, predicate, thisArg) {
+	  var func = isArray(collection) ? arrayFilter : baseFilter;
+	  predicate = baseCallback(predicate, thisArg, 3);
+	  return func(collection, predicate);
+	}
+
+	module.exports = filter;
+
+/***/ },
+/* 208 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/**
+	 * A specialized version of `_.filter` for arrays without support for callback
+	 * shorthands and `this` binding.
+	 *
+	 * @private
+	 * @param {Array} array The array to iterate over.
+	 * @param {Function} predicate The function invoked per iteration.
+	 * @returns {Array} Returns the new filtered array.
+	 */
+	"use strict";
+
+	function arrayFilter(array, predicate) {
+	  var index = -1,
+	      length = array.length,
+	      resIndex = -1,
+	      result = [];
+
+	  while (++index < length) {
+	    var value = array[index];
+	    if (predicate(value, index, array)) {
+	      result[++resIndex] = value;
+	    }
+	  }
+	  return result;
+	}
+
+	module.exports = arrayFilter;
+
+/***/ },
+/* 209 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var baseEach = __webpack_require__(173);
+
+	/**
+	 * The base implementation of `_.filter` without support for callback
+	 * shorthands and `this` binding.
+	 *
+	 * @private
+	 * @param {Array|Object|string} collection The collection to iterate over.
+	 * @param {Function} predicate The function invoked per iteration.
+	 * @returns {Array} Returns the new filtered array.
+	 */
+	function baseFilter(collection, predicate) {
+	  var result = [];
+	  baseEach(collection, function (value, index, collection) {
+	    if (predicate(value, index, collection)) {
+	      result.push(value);
+	    }
+	  });
+	  return result;
+	}
+
+	module.exports = baseFilter;
+
+/***/ },
+/* 210 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
+
+	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+	var React = _interopRequire(__webpack_require__(1));
+
+	var Movie = _interopRequire(__webpack_require__(211));
+
+	var map = _interopRequire(__webpack_require__(163));
+
+	module.exports = React.createClass({
+	  displayName: "Movies",
+
+	  render: function render() {
+	    var _props = this.props;
+	    var title = _props.title;
+	    var movies = _props.movies;
+
+	    return React.createElement(
+	      "div",
+	      { className: "Movies" },
+	      React.createElement(
+	        "h2",
+	        null,
+	        title
+	      ),
+	      React.createElement(
+	        "div",
+	        { className: "Movies_row" },
+	        map(movies, function (m) {
+	          return React.createElement(Movie, _extends({}, m, { key: m.id }));
+	        })
+	      )
+	    );
+	  }
+	});
+
+/***/ },
+/* 211 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
+
+	var React = _interopRequire(__webpack_require__(1));
+
+	var movieActions = _interopRequire(__webpack_require__(212));
+
+	module.exports = React.createClass({
+	  displayName: "Movies",
+
+	  render: function render() {
+	    var _props = this.props;
+	    var img = _props.img;
+	    var inList = _props.inList;
+
+	    return React.createElement(
+	      "div",
+	      { className: "Movie" },
+	      React.createElement("img", { src: img }),
+	      inList ? React.createElement(
+	        "button",
+	        { onClick: this.removeFromMyList },
+	        "Remove"
+	      ) : React.createElement(
+	        "button",
+	        { onClick: this.addToMyList },
+	        "Add"
+	      )
+	    );
+	  },
+
+	  addToMyList: function addToMyList(e) {
+	    e.preventDefault();
+	    movieActions.addToMyList(this.props.id);
+	  },
+
+	  removeFromMyList: function removeFromMyList(e) {
+	    e.preventDefault();
+	    movieActions.removeFromMyList(this.props.id);
+	  }
+	});
+
+/***/ },
+/* 212 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
+
+	var dispatcher = _interopRequire(__webpack_require__(201));
+
+	module.exports = {
+	  init: function init(data) {
+	    dispatcher.dispatch({ actionType: "MOVIES::INIT", data: data });
+	  },
+
+	  addToMyList: function addToMyList(id) {
+	    dispatcher.dispatch({ actionType: "MOVIES::ADD_MOVIE_TO_MY_LIST", id: id });
+	  },
+
+	  removeFromMyList: function removeFromMyList(id) {
+	    dispatcher.dispatch({ actionType: "MOVIES::REMOVE_MOVIE_FROM_MY_LIST", id: id });
+	  }
+	};
+
+/***/ },
+/* 213 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var baseCallback = __webpack_require__(165),
+	    baseEach = __webpack_require__(173),
+	    baseSortBy = __webpack_require__(214),
+	    compareAscending = __webpack_require__(215),
+	    isIterateeCall = __webpack_require__(216),
+	    isLength = __webpack_require__(174);
+
+	/**
+	 * Creates an array of elements, sorted in ascending order by the results of
+	 * running each element in a collection through `iteratee`. This method performs
+	 * a stable sort, that is, it preserves the original sort order of equal elements.
+	 * The `iteratee` is bound to `thisArg` and invoked with three arguments:
+	 * (value, index|key, collection).
+	 *
+	 * If a property name is provided for `iteratee` the created `_.property`
+	 * style callback returns the property value of the given element.
+	 *
+	 * If a value is also provided for `thisArg` the created `_.matchesProperty`
+	 * style callback returns `true` for elements that have a matching property
+	 * value, else `false`.
+	 *
+	 * If an object is provided for `iteratee` the created `_.matches` style
+	 * callback returns `true` for elements that have the properties of the given
+	 * object, else `false`.
+	 *
+	 * @static
+	 * @memberOf _
+	 * @category Collection
+	 * @param {Array|Object|string} collection The collection to iterate over.
+	 * @param {Array|Function|Object|string} [iteratee=_.identity] The function
+	 *  invoked per iteration. If a property name or an object is provided it is
+	 *  used to create a `_.property` or `_.matches` style callback respectively.
+	 * @param {*} [thisArg] The `this` binding of `iteratee`.
+	 * @returns {Array} Returns the new sorted array.
+	 * @example
+	 *
+	 * _.sortBy([1, 2, 3], function(n) {
+	 *   return Math.sin(n);
+	 * });
+	 * // => [3, 1, 2]
+	 *
+	 * _.sortBy([1, 2, 3], function(n) {
+	 *   return this.sin(n);
+	 * }, Math);
+	 * // => [3, 1, 2]
+	 *
+	 * var users = [
+	 *   { 'user': 'fred' },
+	 *   { 'user': 'pebbles' },
+	 *   { 'user': 'barney' }
+	 * ];
+	 *
+	 * // using the `_.property` callback shorthand
+	 * _.pluck(_.sortBy(users, 'user'), 'user');
+	 * // => ['barney', 'fred', 'pebbles']
+	 */
+	function sortBy(collection, iteratee, thisArg) {
+	  if (collection == null) {
+	    return [];
+	  }
+	  var index = -1,
+	      length = collection.length,
+	      result = isLength(length) ? Array(length) : [];
+
+	  if (thisArg && isIterateeCall(collection, iteratee, thisArg)) {
+	    iteratee = null;
+	  }
+	  iteratee = baseCallback(iteratee, thisArg, 3);
+	  baseEach(collection, function (value, key, collection) {
+	    result[++index] = { criteria: iteratee(value, key, collection), index: index, value: value };
+	  });
+	  return baseSortBy(result, compareAscending);
+	}
+
+	module.exports = sortBy;
+
+/***/ },
+/* 214 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/**
+	 * The base implementation of `_.sortBy` which uses `comparer` to define
+	 * the sort order of `array` and replaces criteria objects with their
+	 * corresponding values.
+	 *
+	 * @private
+	 * @param {Array} array The array to sort.
+	 * @param {Function} comparer The function to define sort order.
+	 * @returns {Array} Returns `array`.
+	 */
+	"use strict";
+
+	function baseSortBy(array, comparer) {
+	  var length = array.length;
+
+	  array.sort(comparer);
+	  while (length--) {
+	    array[length] = array[length].value;
+	  }
+	  return array;
+	}
+
+	module.exports = baseSortBy;
+
+/***/ },
+/* 215 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var baseCompareAscending = __webpack_require__(217);
+
+	/**
+	 * Used by `_.sortBy` to compare transformed elements of a collection and stable
+	 * sort them in ascending order.
+	 *
+	 * @private
+	 * @param {Object} object The object to compare to `other`.
+	 * @param {Object} other The object to compare to `object`.
+	 * @returns {number} Returns the sort order indicator for `object`.
+	 */
+	function compareAscending(object, other) {
+	  return baseCompareAscending(object.criteria, other.criteria) || object.index - other.index;
+	}
+
+	module.exports = compareAscending;
+
+/***/ },
+/* 216 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var isIndex = __webpack_require__(192),
+	    isLength = __webpack_require__(174),
+	    isObject = __webpack_require__(186);
+
+	/**
+	 * Checks if the provided arguments are from an iteratee call.
+	 *
+	 * @private
+	 * @param {*} value The potential iteratee value argument.
+	 * @param {*} index The potential iteratee index or key argument.
+	 * @param {*} object The potential iteratee object argument.
+	 * @returns {boolean} Returns `true` if the arguments are from an iteratee call, else `false`.
+	 */
+	function isIterateeCall(value, index, object) {
+	  if (!isObject(object)) {
+	    return false;
+	  }
+	  var type = typeof index;
+	  if (type == "number") {
+	    var length = object.length,
+	        prereq = isLength(length) && isIndex(index, length);
+	  } else {
+	    prereq = type == "string" && index in object;
+	  }
+	  if (prereq) {
+	    var other = object[index];
+	    return value === value ? value === other : other !== other;
+	  }
+	  return false;
+	}
+
+	module.exports = isIterateeCall;
+
+/***/ },
+/* 217 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/**
+	 * The base implementation of `compareAscending` which compares values and
+	 * sorts them in ascending order without guaranteeing a stable sort.
+	 *
+	 * @private
+	 * @param {*} value The value to compare to `other`.
+	 * @param {*} other The value to compare to `value`.
+	 * @returns {number} Returns the sort order indicator for `value`.
+	 */
+	"use strict";
+
+	function baseCompareAscending(value, other) {
+	  if (value !== other) {
+	    var valIsReflexive = value === value,
+	        othIsReflexive = other === other;
+
+	    if (value > other || !valIsReflexive || typeof value == "undefined" && othIsReflexive) {
+	      return 1;
+	    }
+	    if (value < other || !othIsReflexive || typeof other == "undefined" && valIsReflexive) {
+	      return -1;
+	    }
+	  }
+	  return 0;
+	}
+
+	module.exports = baseCompareAscending;
+
+/***/ },
+/* 218 */,
+/* 219 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
+
+	var React = _interopRequire(__webpack_require__(1));
+
+	var Movie = _interopRequire(__webpack_require__(211));
+
+	var map = _interopRequire(__webpack_require__(163));
+
+	module.exports = React.createClass({
+	  displayName: "Movies",
+
+	  render: function render() {
+	    var _props = this.props;
+	    var title = _props.title;
+	    var movies = _props.movies;
+
+	    return React.createElement(
+	      "div",
+	      { className: "Movies" },
+	      React.createElement(
+	        "h3",
+	        null,
+	        title
+	      ),
+	      React.createElement(
+	        "div",
+	        { className: "Movies_row" },
+	        map(movies, function (m) {
+	          return m.title;
+	        }).join(", ")
+	      )
+	    );
+	  }
+	});
 
 /***/ }
 /******/ ]);
