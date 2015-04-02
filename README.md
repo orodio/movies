@@ -1,4 +1,6 @@
-Try it out: -> [http://movies.surge.sh/](http://movies.surge.sh/)
+Try it out: [http://movies.surge.sh/](http://movies.surge.sh/)
+
+> **NOTE** For best experience use the latest version of Chrome
 
 # How To
 
