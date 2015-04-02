@@ -1,1 +1,18 @@
-body { background: tomato; }
+* { margin:0; padding:0; outline:none; border:none; text-decoration:none; }
+
+.App { width:90%; margin:30px auto; }
+
+.Movies { margin-bottom:55px; }
+  .Movies h2 { font-size:34px; margin-bottom:13px; }
+  .Movies h3 { font-size:21px; margin-bottom:13px; }
+
+.Movies_row { display:flex; min-height:270px; }
+
+.Movie { display:flex; flex-direction:column; margin-right:34px; }
+  .Movie img { display:block; }
+  .Movie button { font-size:21px; line-height:34px; cursor:pointer; width:100%; }
+
+.Movie { perspective:800px; }
+  .Movie button { transform:rotateX(-0.25turn); transform-origin:50% 0; opacity:0; }
+    .Movie:hover button { transform:rotateX(0turn); opacity:1; transition:transform 125ms ease-in, opacity 50ms linear; }
+  .Movie button:active { transform:rotateX(-0.035turn); }
