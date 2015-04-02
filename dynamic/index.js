@@ -1,12 +1,12 @@
-import "babel/polyfill"
-import "./debug"
+import "babel/polyfill";
+import "./debug";
 
 
 
 
-import React        from "react"
-import App          from "components/App.js"
-import movieActions from "actions/movie"
+import React        from "react";
+import App          from "components/App.js";
+import movieActions from "actions/movie";
 
 
 
@@ -23,7 +23,7 @@ const DATA = {
       { 'title': 'The Croods', 'id': 5, 'img': 'http://cdn3.nflximg.net/webp/2353/3862353.webp' },
       { 'title': 'Friends',    'id': 6, 'img': 'http://cdn0.nflximg.net/webp/3200/9163200.webp' }
   ]
-}
+};
 
 
 

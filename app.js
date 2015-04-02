@@ -22862,10 +22862,10 @@
 
 	"use strict";
 
-	if (true) {
+	if (false) {
 	  (function () {
-	    var dispatcher = __webpack_require__(201);
-	    var movieStore = __webpack_require__(205);
+	    var dispatcher = require("dispatcher");
+	    var movieStore = require("stores/movies");
 
 	    dispatcher.register(function (payload) {
 	      console.log("~~ Dispatcher: ", payload);
@@ -23401,8 +23401,23 @@
 
 	var map = _interopRequire(__webpack_require__(163));
 
+	var _React$PropTypes = React.PropTypes;
+	var number = _React$PropTypes.number;
+	var string = _React$PropTypes.string;
+	var bool = _React$PropTypes.bool;
+	var arrayOf = _React$PropTypes.arrayOf;
+	var shape = _React$PropTypes.shape;
 	module.exports = React.createClass({
 	  displayName: "Movies",
+
+	  propTypes: {
+	    title: string,
+	    movies: arrayOf(shape({
+	      img: string,
+	      inList: bool,
+	      id: number
+	    }))
+	  },
 
 	  render: function render() {
 	    var _props = this.props;
@@ -23440,8 +23455,18 @@
 
 	var movieActions = _interopRequire(__webpack_require__(212));
 
+	var _React$PropTypes = React.PropTypes;
+	var number = _React$PropTypes.number;
+	var string = _React$PropTypes.string;
+	var bool = _React$PropTypes.bool;
 	module.exports = React.createClass({
 	  displayName: "Movies",
+
+	  propTypes: {
+	    img: string,
+	    inList: bool,
+	    id: number
+	  },
 
 	  render: function render() {
 	    var _props = this.props;
@@ -23718,8 +23743,19 @@
 
 	var map = _interopRequire(__webpack_require__(163));
 
+	var _React$PropTypes = React.PropTypes;
+	var string = _React$PropTypes.string;
+	var arrayOf = _React$PropTypes.arrayOf;
+	var shape = _React$PropTypes.shape;
 	module.exports = React.createClass({
 	  displayName: "Movies",
+
+	  propTypes: {
+	    title: string,
+	    movies: arrayOf(shape({
+	      title: string
+	    }))
+	  },
 
 	  render: function render() {
 	    var _props = this.props;
